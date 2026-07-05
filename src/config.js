@@ -22,7 +22,9 @@ export const config = {
     minMarketYen: 0, // これ未満の相場はノイズとして無視
   },
 
-  // Googleカレンダー
+  // Googleカレンダー（任意・API直書き方式）
+  // ※設定する場合は必ず個人アカウント mirupurasu@gmail.com が所有するカレンダーのIDを使うこと。
+  //   仕事用アカウント(o.tarumi@…)のカレンダーには絶対に書き込まない。
   calendar: {
     enabled: !!process.env.GOOGLE_CALENDAR_ID,
     calendarId: process.env.GOOGLE_CALENDAR_ID || '',
