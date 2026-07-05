@@ -2,7 +2,7 @@ name: ポケカ抽選チェック
 
 on:
   schedule:
-    - cron: '*/30 * * * *' # 30分ごと（UTC基準・多少遅延あり）
+    - cron: '*/15 * * * *' # 15分ごと（入荷速報の検知を速く。Public repoはActions無料）
   workflow_dispatch: {} # 手動実行も可
 
 # seen.json/dashboard のコミットに contents:write、Pages公開に pages/id-token
@@ -42,8 +42,8 @@ jobs:
 
       - name: Persist state & dashboard
         run: |
-          git add data/seen.json public/
-          if [[ -z "$(git status --porcelain data/seen.json public/)" ]]; then
+          git add data/ public/
+          if [[ -z "$(git status --porcelain data/ public/)" ]]; then
             echo "no change"; exit 0
           fi
           git config user.name "github-actions[bot]"

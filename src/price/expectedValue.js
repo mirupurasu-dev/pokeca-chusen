@@ -6,6 +6,32 @@ import { config } from '../config.js';
 import { lookupSurugaya } from './surugaya.js';
 import { log } from '../util/log.js';
 
+/**
+ * 在庫あり商品に期待値を付ける。BOX商品だけ対象
+ * （グミ・プロモ等の関連商品にBOX相場を当てると誤った巨額利益が出るため）。
+ * 期待利益 = 相場 − 実際の販売価格。
+ */
+export async function attachStockEv(items) {
+  if (!config.price.enabled) return items;
+  // 食玩・グッズ類はカードBOXの相場と比較すると偽の巨額利益が出るので除外
+  // （例: グミの「20個入りBOX」がBOX判定を通ってしまう）
+  const NOT_CARD = /グミ|ウエハース|チョコ|キャンディ|ラムネ|スナック|食玩|シール|マグネット|ファイル|バインダー|スリーブ|デッキシールド|プレイマット|フィギュア|ぬいぐるみ/;
+  for (const it of items) {
+    try {
+      if (it.priceYen == null || !/BOX|ボックス/i.test(it.desc)) continue;
+      if (NOT_CARD.test(it.desc)) continue;
+      const q = await lookupSurugaya(it.title);
+      if (!q || q.marketYen == null) continue;
+      const profit = q.marketYen - it.priceYen;
+      it.market = { yen: q.marketYen, listYen: it.priceYen, source: '駿河屋', matchedTitle: q.matchedTitle, url: q.url, confident: q.confident };
+      it.ev = { profitYen: profit, roiPct: it.priceYen ? Math.round((profit / it.priceYen) * 100) : null };
+    } catch (err) {
+      log.warn(`在庫EV計算失敗 (${it.title}): ${err.message}`);
+    }
+  }
+  return items;
+}
+
 export async function attachExpectedValue(lotteries) {
   if (!config.price.enabled) return lotteries;
   log.info(`相場を取得して期待値を計算 (${lotteries.length}件)…`);

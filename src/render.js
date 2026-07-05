@@ -3,8 +3,18 @@
 // CSS/JSインライン、外部依存なし。並替・絞込・締切ライブカウントダウンはクライアントJS。
 import { fmtJst } from './util/dates.js';
 
-function toPayload(lotteries, generatedAt) {
+function toPayload(lotteries, stock, generatedAt) {
   return {
+    stock: (stock || []).map((s) => ({
+      store: s.store || '',
+      title: s.title || '',
+      desc: s.desc || '',
+      price: s.priceYen ?? null,
+      url: /^https?:\/\//.test(s.url || '') ? s.url : '',
+      profit: s.ev?.profitYen ?? null,
+      roi: s.ev?.roiPct ?? null,
+      market: s.market?.yen ?? null,
+    })),
     generatedAt: generatedAt.toISOString(),
     generatedLabel: new Intl.DateTimeFormat('ja-JP', {
       timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric',
@@ -33,8 +43,8 @@ function toPayload(lotteries, generatedAt) {
   };
 }
 
-export function renderBody(lotteries, generatedAt = new Date()) {
-  const payload = toPayload(lotteries, generatedAt);
+export function renderBody(lotteries, stock = [], generatedAt = new Date()) {
+  const payload = toPayload(lotteries, stock, generatedAt);
   const json = JSON.stringify(payload).replace(/</g, '\\u003c');
 
   return `<title>ポケカ抽選ターミナル</title>
@@ -96,6 +106,32 @@ header.top{
   background:linear-gradient(115deg,transparent 30%,#e6b45015 46%,#7fd7ff10 52%,#e6b45012 58%,transparent 74%);
 }
 .stat.hero .val{color:var(--gold)}
+
+/* ── stock strip (今すぐ買える) ── */
+.stockwrap{margin:16px 0 4px;border:1px solid #2f6b45;border-radius:14px;overflow:hidden;
+  background:linear-gradient(180deg,#12241a20,transparent),linear-gradient(180deg,var(--surface),#10141c)}
+.stockhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:12px 16px 4px}
+.stocktitle{font-weight:800;font-size:14px;color:var(--good);letter-spacing:.02em}
+.stockcount{font:700 12px var(--mono);margin-left:6px;color:var(--muted)}
+.stocknote{font-size:11px;color:var(--faint)}
+.stocklist{display:flex;flex-direction:column;padding:6px 8px 10px}
+.stockrow{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;transition:.15s;min-width:0}
+.stockrow:hover{background:#40c76a0d}
+.stockrow .chip{flex:none}
+.stockrow .sdesc{flex:1;min-width:0;font-size:12.5px;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stockrow .sprice{flex:none;font:700 13px var(--mono);color:var(--text);font-variant-numeric:tabular-nums}
+.stockrow .sev{flex:none;font:700 11px var(--mono);padding:3px 7px;border-radius:6px}
+.stockrow .sev.pos{color:var(--good);background:#40c76a1a}
+.stockrow .sev.neg{color:var(--bad);background:#ff6a6a17}
+.stockrow .go{flex:none;font:700 12px var(--jp);color:var(--good);border:1px solid #2f6b45;
+  border-radius:8px;padding:5px 10px;white-space:nowrap}
+.stockrow:hover .go{background:#40c76a14}
+@media (max-width:640px){
+  .stockrow{flex-wrap:wrap;row-gap:4px}
+  .stockrow .sdesc{flex-basis:100%;white-space:normal;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+}
 
 /* ── controls ── */
 .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:18px 0 6px}
@@ -186,6 +222,14 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
 
 <main class="wrap">
   <section class="summary" id="summary"></section>
+
+  <section class="stockwrap" id="stockwrap" hidden>
+    <div class="stockhead">
+      <span class="stocktitle">📦 今すぐ買える<span class="stockcount" id="stockcount"></span></span>
+      <span class="stocknote">先着・在庫あり（入荷Now調べ / 15分毎更新）</span>
+    </div>
+    <div class="stocklist" id="stocklist"></div>
+  </section>
 
   <div class="controls">
     <div class="segs" role="tablist" aria-label="並び替え">
@@ -326,6 +370,26 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
          + '<div class="val">'+esc(val)+'</div><div class="sub">'+esc(sub)+'</div></div>';
   }
 
+  // 在庫あり（今すぐ買える）ストリップ — 一度だけ描画
+  (function renderStock(){
+    var st=DATA.stock||[];
+    if(!st.length) return;
+    document.getElementById("stockwrap").hidden=false;
+    document.getElementById("stockcount").textContent=st.length+"件";
+    document.getElementById("stocklist").innerHTML=st.map(function(s){
+      var h='';
+      var tag=s.url?'a':'div';
+      h+='<'+tag+' class="stockrow"'+(s.url?' href="'+esc(s.url)+'" target="_blank" rel="noopener"':'')+'>';
+      h+='<span class="chip">'+esc(s.store)+'</span>';
+      h+='<span class="sdesc" title="'+esc(s.desc)+'">'+esc(s.desc)+'</span>';
+      if(s.price!=null) h+='<span class="sprice">'+yen(s.price)+'</span>';
+      if(s.profit!=null) h+='<span class="sev '+(s.profit>=0?"pos":"neg")+'">'+(s.profit>=0?"+":"−")+yen(Math.abs(s.profit))+'</span>';
+      h+='<span class="go">買う &rarr;</span>';
+      h+='</'+tag+'>';
+      return h;
+    }).join("");
+  })();
+
   // events
   Array.prototype.forEach.call(document.querySelectorAll(".segs button"),function(b){
     b.addEventListener("click",function(){
@@ -352,7 +416,7 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
 </script>`;
 }
 
-export function renderHtml(lotteries, generatedAt = new Date()) {
+export function renderHtml(lotteries, stock = [], generatedAt = new Date()) {
   return `<!doctype html>
 <html lang="ja">
 <head>
@@ -363,7 +427,7 @@ export function renderHtml(lotteries, generatedAt = new Date()) {
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%F0%9F%8E%B4%3C/text%3E%3C/svg%3E">
 </head>
 <body>
-${renderBody(lotteries, generatedAt)}
+${renderBody(lotteries, stock, generatedAt)}
 </body>
 </html>`;
 }

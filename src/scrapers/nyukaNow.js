@@ -11,8 +11,19 @@ import * as cheerio from 'cheerio';
 import { config } from '../config.js';
 import { fetchHtml } from '../util/http.js';
 import { parseJpDateTime } from '../util/dates.js';
-import { tidy, splitProducts, sha1, lotteryKey } from '../util/text.js';
+import { tidy, splitProducts, sha1, lotteryKey, parseYen } from '../util/text.js';
 import { log } from '../util/log.js';
+
+// 同一実行内でのHTML再取得を避ける（抽選と在庫の両パーサで共用）
+let _htmlCache = null;
+async function getHtml() {
+  if (!_htmlCache) {
+    const url = config.sources.nyukaNow.url;
+    log.info(`入荷Now を取得: ${url}`);
+    _htmlCache = await fetchHtml(url);
+  }
+  return _htmlCache;
+}
 
 const LABEL = {
   product: /対象商品|商品/,
@@ -33,10 +44,8 @@ function matchLabel(label) {
 }
 
 export async function scrapeNyukaNow(now = new Date()) {
-  const url = config.sources.nyukaNow.url;
-  log.info(`入荷Now を取得: ${url}`);
   // WordPress＝HTMLは初期レスポンスに含まれるので素のfetchで取得（ブラウザ不要）。
-  const html = await fetchHtml(url);
+  const html = await getHtml();
   const $ = cheerio.load(html);
   const article = $('main').first().length ? $('main').first() : $('article').first();
 
@@ -116,4 +125,59 @@ export async function scrapeNyukaNow(now = new Date()) {
 
   log.info(`入荷Now から抽選 ${lotteries.length} 件を抽出`);
   return lotteries;
+}
+
+/**
+ * 「【在庫あり】先着販売・再販実施中のストア」セクションを解析する（入荷速報用）。
+ * 実DOM構造（2026-07時点）:
+ *   h2(【在庫あり】…) 配下に h3(商品名+「在庫あり」) と、直後のテーブル。
+ *   テーブル各行 = [ストア名] 商品説明（価格：X,XXX円） +リンク。
+ * 返す id はストア×説明文で安定。リストから消えたら状態も消え、再入荷で再通知される。
+ */
+export async function scrapeNyukaStock() {
+  const html = await getHtml();
+  const $ = cheerio.load(html);
+  const main = $('main').first().length ? $('main').first() : $('article').first();
+
+  const items = [];
+  let inSection = false;
+  let product = '';
+
+  main.find('h2, h3, table').each((_, el) => {
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'h2') {
+      inSection = /在庫あり/.test($(el).text());
+      return;
+    }
+    if (!inSection) return;
+    if (tag === 'h3') {
+      product = tidy($(el).text()).replace(/在庫あり\s*$/, '').trim();
+      return;
+    }
+    // table
+    $(el)
+      .find('tr')
+      .each((__, tr) => {
+        const c = $(tr).find('th, td');
+        if (c.length < 2) return;
+        const store = tidy(c.eq(0).text());
+        const desc = tidy(c.eq(1).text());
+        if (!store || !desc) return;
+        const href = $(tr).find('a').attr('href') || '';
+        const priceYen = parseYen((desc.match(/価格[：:]\s*([\d,]+)\s*円/) || [])[1] || '');
+        items.push({
+          id: 'stock:' + sha1(`${store}|${desc}`),
+          isStock: true,
+          store,
+          title: product || desc.slice(0, 40),
+          desc,
+          priceYen,
+          url: /^https?:\/\//.test(href) ? href : '',
+          source: '入荷Now',
+        });
+      });
+  });
+
+  log.info(`入荷Now から在庫あり ${items.length} 件を抽出`);
+  return items;
 }

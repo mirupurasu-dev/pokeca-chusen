@@ -29,7 +29,12 @@ export function detailLines(lot) {
   } else if (lot.marketMissing) {
     lines.push('🆕 相場未確立（新商品・未発売の可能性）');
   }
-  if (!lot.applyStart && !lot.applyEnd) lines.push('📆 日程未定（確定したら再通知）');
+  if (lot.isStock) {
+    if (lot.priceYen != null) lines.push(`💰 販売価格 ${yen(lot.priceYen)}`);
+    if (lot.desc) lines.push(`📦 ${lot.desc}`);
+  } else if (!lot.applyStart && !lot.applyEnd) {
+    lines.push('📆 日程未定（確定したら再通知）');
+  }
   const ev = evBadge(lot);
   if (ev) lines.push(`📈 ${ev}`);
   if (lot.conditions) lines.push(`📝 条件: ${lot.conditions}`);

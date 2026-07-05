@@ -3,12 +3,13 @@ import { title, detailLines, evBadge } from '../format.js';
 import { log } from '../util/log.js';
 
 function toEmbed({ kind, lottery }) {
-  const isNew = kind === 'new';
   const profit = lottery.ev?.profitYen;
-  // 期待利益がプラスなら緑、マイナスなら赤、不明なら青
-  const color = profit == null ? 0x3b82f6 : profit >= 0 ? 0x22c55e : 0xef4444;
+  // 在庫速報はゴールド。抽選は期待利益プラスなら緑、マイナスなら赤、不明なら青
+  const color =
+    kind === 'stock' ? 0xe6b450 : profit == null ? 0x3b82f6 : profit >= 0 ? 0x22c55e : 0xef4444;
+  const prefix = kind === 'stock' ? '📦 入荷速報:' : kind === 'new' ? '🆕' : '🔄';
   return {
-    title: `${isNew ? '🆕' : '🔄'} ${title(lottery)}`,
+    title: `${prefix} ${title(lottery)}`,
     description: detailLines(lottery).join('\n'),
     url: lottery.url || undefined,
     color,

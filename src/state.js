@@ -5,6 +5,7 @@ import path from 'node:path';
 import { sha1 } from './util/text.js';
 
 const FILE = path.join('data', 'seen.json');
+const STOCK_FILE = path.join('data', 'stock-seen.json');
 
 /** 抽選の「内容」の指紋。締切・開始・当落・リンク・期待利益が変われば更新扱い。 */
 export function signature(lot) {
@@ -44,6 +45,31 @@ export function diff(lotteries, seen) {
     nextSeen[lot.id] = sig;
     if (!(lot.id in seen)) toNotify.push({ kind: 'new', lottery: lot });
     else if (seen[lot.id] !== sig) toNotify.push({ kind: 'update', lottery: lot });
+  }
+  return { toNotify, nextSeen };
+}
+
+// ── 在庫あり（入荷速報）の状態 ──
+// 「今リストに載っている」だけ記録する。消えたら状態も消え、再入荷で再通知される。
+export async function loadStockSeen() {
+  try {
+    return JSON.parse(await readFile(STOCK_FILE, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+export async function saveStockSeen(map) {
+  await mkdir('data', { recursive: true });
+  await writeFile(STOCK_FILE, JSON.stringify(map, null, 2), 'utf8');
+}
+
+export function diffStock(items, seen) {
+  const toNotify = [];
+  const nextSeen = {};
+  for (const it of items) {
+    nextSeen[it.id] = 1;
+    if (!(it.id in seen)) toNotify.push({ kind: 'stock', lottery: it });
   }
   return { toNotify, nextSeen };
 }

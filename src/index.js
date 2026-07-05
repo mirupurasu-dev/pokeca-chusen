@@ -10,22 +10,25 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { config } from './config.js';
 import { scrapeAll } from './scrapers/index.js';
-import { attachExpectedValue } from './price/expectedValue.js';
+import { scrapeNyukaStock } from './scrapers/nyukaNow.js';
+import { attachExpectedValue, attachStockEv } from './price/expectedValue.js';
 import { upsertEvents } from './calendar/google.js';
 import { notify } from './notify/index.js';
-import { loadSeen, saveSeen, diff } from './state.js';
+import { loadSeen, saveSeen, diff, loadStockSeen, saveStockSeen, diffStock } from './state.js';
 import { consoleBlock } from './format.js';
 import { renderHtml } from './render.js';
 import { renderIcs } from './calendar/ics.js';
 import { log } from './util/log.js';
 
-async function writeDashboard(lotteries, now) {
+async function writeDashboard(lotteries, stock, now) {
   await mkdir('public', { recursive: true });
-  await writeFile(path.join('public', 'index.html'), renderHtml(lotteries, now), 'utf8');
+  await writeFile(path.join('public', 'index.html'), renderHtml(lotteries, stock, now), 'utf8');
   const ics = renderIcs(lotteries, now);
   await writeFile(path.join('public', 'calendar.ics'), ics, 'utf8');
   const events = (ics.match(/BEGIN:VEVENT/g) || []).length;
-  log.info(`ダッシュボードを生成: public/index.html (${lotteries.length}件) / calendar.ics (${events}予定)`);
+  log.info(
+    `ダッシュボードを生成: public/index.html (抽選${lotteries.length}件+在庫${stock.length}件) / calendar.ics (${events}予定)`
+  );
 }
 
 async function main() {
@@ -39,11 +42,25 @@ async function main() {
     log.warn('抽選が1件も取得できませんでした（サイト構造変更の可能性）');
     return;
   }
+  let stock = [];
+  try {
+    stock = await scrapeNyukaStock();
+  } catch (err) {
+    log.error(`在庫スクレイプ失敗: ${err.message}`);
+  }
   await attachExpectedValue(lotteries);
-  await writeDashboard(lotteries, now);
+  await attachStockEv(stock);
+  await writeDashboard(lotteries, stock, now);
 
   if (dryRun) {
     const seen = await loadSeen();
+    if (stock.length) {
+      console.log(`\n================ 📦 在庫あり ${stock.length}件 ================\n`);
+      for (const it of stock) {
+        const ev = it.ev ? `  期待利益 ${it.ev.profitYen >= 0 ? '+' : '−'}¥${Math.abs(it.ev.profitYen).toLocaleString()}` : '';
+        console.log(`📦 ${it.store}：${it.desc.slice(0, 60)}${ev}\n   ${it.url || '(リンクなし)'}\n`);
+      }
+    }
     console.log(`\n================ 抽選 ${lotteries.length}件 (締切順) ================\n`);
     for (const lot of lotteries) {
       const tag = !(lot.id in seen) ? '🆕 ' : '既知 ';
@@ -64,12 +81,15 @@ async function main() {
   // 本番: カレンダーへupsert（全件・冪等）
   await upsertEvents(lotteries);
 
-  // 新規/更新だけ通知
+  // 新規/更新の抽選＋新規入荷を通知
   const seen = await loadSeen();
   const { toNotify, nextSeen } = diff(lotteries, seen);
-  log.info(`新規/更新: ${toNotify.length}件`);
-  await notify(toNotify);
+  const stockSeen = await loadStockSeen();
+  const stockDiff = diffStock(stock, stockSeen);
+  log.info(`抽選 新規/更新: ${toNotify.length}件 / 入荷速報: ${stockDiff.toNotify.length}件`);
+  await notify([...stockDiff.toNotify, ...toNotify]); // 入荷を先に（時間勝負のため）
   await saveSeen(nextSeen);
+  await saveStockSeen(stockDiff.nextSeen);
 }
 
 main().catch((e) => {
