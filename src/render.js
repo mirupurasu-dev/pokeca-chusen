@@ -297,7 +297,7 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
 </main>
 
 <footer><div class="wrap">
-  <span>データ元: 入荷Now ・ 攻略大百科 ／ 相場: 駿河屋（中古販売価格）</span>
+  <span>データ元: 入荷Now ・ 攻略大百科 ／ 相場: スニダン・駿河屋</span>
   <span>期待利益 = 相場 − 定価。応募可否・締切は必ずリンク先の公式でご確認ください。</span>
 </div></footer>
 

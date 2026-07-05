@@ -36,7 +36,7 @@ export function detailLines(lot) {
   if (lot.market?.yen != null) {
     const list = lot.market.listYen != null ? ` / 定価 ${yen(lot.market.listYen)}` : '';
     const conf = lot.market.confident ? '' : '（参考・要確認）';
-    lines.push(`💴 相場 ${yen(lot.market.yen)}${list} 〔駿河屋${conf}〕`);
+    lines.push(`💴 相場 ${yen(lot.market.yen)}${list} 〔${lot.market.source || '相場'}${conf}〕`);
   } else if (lot.marketMissing) {
     lines.push('🆕 相場未確立（新商品・未発売の可能性）');
   }

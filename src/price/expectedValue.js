@@ -4,7 +4,25 @@
 // 相場・定価は駿河屋から取得。定価は抽選ソース側にあればそちらを優先。
 import { config } from '../config.js';
 import { lookupSurugaya } from './surugaya.js';
+import { lookupSnkrdunk } from './snkrdunk.js';
 import { log } from '../util/log.js';
+
+/**
+ * 相場ルックアップのフォールバックチェーン。
+ * スニダンを第一（CI/ローカル両方で到達可）、駿河屋を第二
+ * （駿河屋はCloudflareがデータセンターIPを403で弾くためCIでは失敗する）。
+ * @returns {Promise<null | {marketYen, listYen, matchedTitle, url, confident, source}>}
+ */
+async function lookupMarket(product) {
+  const s = await lookupSnkrdunk(product);
+  if (s && s.marketYen != null) return { ...s, source: 'スニダン' };
+  const g = await lookupSurugaya(product);
+  if (g && g.marketYen != null) {
+    // 定価はスニダンで取れていれば補完
+    return { ...g, listYen: g.listYen ?? s?.listYen ?? null, source: '駿河屋' };
+  }
+  return null;
+}
 
 /**
  * 在庫あり商品に期待値を付ける。BOX商品だけ対象
@@ -20,10 +38,10 @@ export async function attachStockEv(items) {
     try {
       if (it.priceYen == null || !/BOX|ボックス/i.test(it.desc)) continue;
       if (NOT_CARD.test(it.desc)) continue;
-      const q = await lookupSurugaya(it.title);
-      if (!q || q.marketYen == null) continue;
+      const q = await lookupMarket(it.title);
+      if (!q || !q.confident) continue; // 相場側の商品一致が確実な時だけ
       const profit = q.marketYen - it.priceYen;
-      it.market = { yen: q.marketYen, listYen: it.priceYen, source: '駿河屋', matchedTitle: q.matchedTitle, url: q.url, confident: q.confident };
+      it.market = { yen: q.marketYen, listYen: it.priceYen, source: q.source, matchedTitle: q.matchedTitle, url: q.url, confident: q.confident };
       it.ev = { profitYen: profit, roiPct: it.priceYen ? Math.round((profit / it.priceYen) * 100) : null };
     } catch (err) {
       log.warn(`在庫EV計算失敗 (${it.title}): ${err.message}`);
@@ -38,8 +56,8 @@ export async function attachExpectedValue(lotteries) {
 
   for (const lot of lotteries) {
     try {
-      const q = await lookupSurugaya(lot.title);
-      if (!q || q.marketYen == null) {
+      const q = await lookupMarket(lot.title);
+      if (!q) {
         // 相場が見つからない＝未発売/新商品の可能性（発売済みなら通常ヒットする）
         lot.ev = null;
         lot.marketMissing = true;
@@ -47,15 +65,18 @@ export async function attachExpectedValue(lotteries) {
       }
       const listYen = lot.priceYen ?? q.listYen ?? null;
       const market = q.marketYen;
-      const profit = listYen != null ? market - listYen : null;
       lot.market = {
         yen: market,
         listYen,
-        source: '駿河屋',
+        source: q.source,
         matchedTitle: q.matchedTitle,
         url: q.url,
         confident: q.confident,
       };
+      // 期待利益は「商品名の確信マッチ」時のみ算出する。
+      // 曖昧マッチの定価/相場で計算すると誤った損益（別商品の定価¥891等）が出るため、
+      // その場合は相場を参考表示するだけに留める。
+      const profit = q.confident && listYen != null ? market - listYen : null;
       lot.ev =
         profit == null
           ? null
