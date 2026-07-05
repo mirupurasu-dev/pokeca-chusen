@@ -5,6 +5,9 @@ export const config = {
     nyukaNow: {
       url: process.env.NYUKA_NOW_URL || 'https://nyuka-now.com/archives/2459',
     },
+    gamepedia: {
+      url: process.env.GAMEPEDIA_URL || 'https://premium.gamepedia.jp/pokeca/archives/124',
+    },
   },
 
   // まとめページのどのセクション(h2)を対象にするか。

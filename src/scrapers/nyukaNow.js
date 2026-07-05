@@ -11,7 +11,7 @@ import * as cheerio from 'cheerio';
 import { config } from '../config.js';
 import { fetchHtml } from '../util/http.js';
 import { parseJpDateTime } from '../util/dates.js';
-import { tidy, splitProducts, sha1 } from '../util/text.js';
+import { tidy, splitProducts, sha1, lotteryKey } from '../util/text.js';
 import { log } from '../util/log.js';
 
 const LABEL = {
@@ -95,7 +95,7 @@ export async function scrapeNyukaNow(now = new Date()) {
       links[0]?.href ||
       null;
 
-    const id = 'nyuka:' + sha1(`${store}|${primary}|${fields.start || fields.period || ''}`);
+    const id = 'lot:' + sha1(lotteryKey(store, primary));
 
     lotteries.push({
       id,

@@ -57,3 +57,24 @@ export function yen(n) {
   if (n == null || !Number.isFinite(n)) return '—';
   return '¥' + Math.round(n).toLocaleString('en-US');
 }
+
+/**
+ * ソース非依存の抽選キー（複数まとめサイト間の重複排除用）。
+ * 店舗名から「(N回目)/各店/通販/店/オンライン」等の表記揺れを除去し、商品の
+ * 先頭語で正規化する。異なるサイトの同一抽選（＝同じ店×同じ商品）が同じキーになる。
+ * 日付はソース間でズレやすいのでキーに含めない（＝同店同商品の再抽選は1件に統合）。
+ */
+export function lotteryKey(store, product) {
+  const s = tidy(store)
+    .replace(/[（(][^）)]*[)）]/g, '') // (5回目) など
+    .replace(/各店|店舗|オンラインショップ|オンライン|eショップ|ネットショッピング|通販|支店|本店|店/g, '')
+    .replace(/\s/g, '')
+    .toLowerCase();
+  const p = (searchKeyword(product).split(/\s+/)[0] || tidy(product)).toLowerCase();
+  return `${s}|${p}`;
+}
+
+/** 応募リンクがまとめサイト内部リンクでなく実際の外部応募先か。 */
+export function isExternalApply(url) {
+  return !!url && /^https?:/.test(url) && !/nyuka-now\.com|gamepedia\.jp/.test(url);
+}
