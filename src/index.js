@@ -14,8 +14,12 @@ import { scrapeNyukaStock } from './scrapers/nyukaNow.js';
 import { attachExpectedValue, attachStockEv } from './price/expectedValue.js';
 import { upsertEvents } from './calendar/google.js';
 import { notify } from './notify/index.js';
-import { loadSeen, saveSeen, diff, loadStockSeen, saveStockSeen, diffStock } from './state.js';
-import { consoleBlock } from './format.js';
+import {
+  loadSeen, saveSeen, diff,
+  loadStockSeen, saveStockSeen, diffStock,
+  loadRemindSeen, saveRemindSeen,
+} from './state.js';
+import { consoleBlock, isHot } from './format.js';
 import { renderHtml } from './render.js';
 import { renderIcs } from './calendar/ics.js';
 import { log } from './util/log.js';
@@ -86,10 +90,34 @@ async function main() {
   const { toNotify, nextSeen } = diff(lotteries, seen);
   const stockSeen = await loadStockSeen();
   const stockDiff = diffStock(stock, stockSeen);
-  log.info(`抽選 新規/更新: ${toNotify.length}件 / 入荷速報: ${stockDiff.toNotify.length}件`);
-  await notify([...stockDiff.toNotify, ...toNotify]); // 入荷を先に（時間勝負のため）
+
+  // 🔥買い推奨の締切リマインド（残り時間がステージを跨いだ実行回に1回だけ）
+  const remindSeen = await loadRemindSeen();
+  const nextRemind = {};
+  const reminders = [];
+  const newIds = new Set(toNotify.map((x) => x.lottery.id));
+  for (const lot of lotteries) {
+    if (!isHot(lot) || !lot.applyEnd) continue;
+    const hoursLeft = (lot.applyEnd.getTime() - now.getTime()) / 3.6e6;
+    if (hoursLeft <= 0) continue;
+    const due = config.hot.remindStagesHours.filter((h) => hoursLeft <= h).map(String);
+    const done = remindSeen[lot.id] || [];
+    nextRemind[lot.id] = [...new Set([...done, ...due])];
+    const fresh = due.filter((s) => !done.includes(s));
+    // 同じ実行で🆕通知済みならリマインドは重ねない
+    if (fresh.length && !newIds.has(lot.id)) {
+      reminders.push({ kind: 'remind', lottery: lot, hoursLeft });
+    }
+  }
+
+  log.info(
+    `抽選 新規/更新: ${toNotify.length}件 / 入荷速報: ${stockDiff.toNotify.length}件 / 締切リマインド: ${reminders.length}件`
+  );
+  // 時間勝負順: 入荷 → 締切リマインド → 新規/更新
+  await notify([...stockDiff.toNotify, ...reminders, ...toNotify]);
   await saveSeen(nextSeen);
   await saveStockSeen(stockDiff.nextSeen);
+  await saveRemindSeen(nextRemind);
 }
 
 main().catch((e) => {

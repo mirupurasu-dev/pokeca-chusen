@@ -1,13 +1,23 @@
 // Discord Webhook へ通知（埋め込み）。スマホのDiscordアプリにプッシュが届く。
-import { title, detailLines, evBadge } from '../format.js';
+import { title, detailLines, evBadge, isHot } from '../format.js';
 import { log } from '../util/log.js';
 
-function toEmbed({ kind, lottery }) {
+function toEmbed({ kind, lottery, hoursLeft }) {
   const profit = lottery.ev?.profitYen;
-  // 在庫速報はゴールド。抽選は期待利益プラスなら緑、マイナスなら赤、不明なら青
+  const hot = isHot(lottery);
+  // 🔥/在庫速報はゴールド。抽選は期待利益プラスなら緑、マイナスなら赤、不明なら青
   const color =
-    kind === 'stock' ? 0xe6b450 : profit == null ? 0x3b82f6 : profit >= 0 ? 0x22c55e : 0xef4444;
-  const prefix = kind === 'stock' ? '📦 入荷速報:' : kind === 'new' ? '🆕' : '🔄';
+    hot || kind === 'stock' ? 0xe6b450 : profit == null ? 0x3b82f6 : profit >= 0 ? 0x22c55e : 0xef4444;
+  const prefix =
+    kind === 'remind'
+      ? `⏰🔥 締切あと約${Math.max(1, Math.round(hoursLeft))}時間:`
+      : kind === 'stock'
+        ? `📦${hot ? '🔥' : ''} 入荷速報:`
+        : hot
+          ? '🔥 買い推奨:'
+          : kind === 'new'
+            ? '🆕'
+            : '🔄';
   return {
     title: `${prefix} ${title(lottery)}`,
     description: detailLines(lottery).join('\n'),

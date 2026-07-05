@@ -1,10 +1,12 @@
 // 抽選一覧から自己完結型のダッシュボードHTML(public/index.html)を生成する。
 // コンセプト: コレクター向けマーケット端末（相場・期待値を主役に）。
 // CSS/JSインライン、外部依存なし。並替・絞込・締切ライブカウントダウンはクライアントJS。
+import { config } from './config.js';
 import { fmtJst } from './util/dates.js';
 
 function toPayload(lotteries, stock, generatedAt) {
   return {
+    hot: { minProfit: config.hot.minProfitYen, minRoi: config.hot.minRoiPct },
     stock: (stock || []).map((s) => ({
       store: s.store || '',
       title: s.title || '',
@@ -107,6 +109,37 @@ header.top{
 }
 .stat.hero .val{color:var(--gold)}
 
+/* ── hot ranking (買い推奨) ── */
+.hotwrap{margin:16px 0 4px;border:1px solid var(--gold-dim);border-radius:14px;overflow:hidden;position:relative;
+  background:linear-gradient(180deg,#2a210f30,transparent 60%),linear-gradient(180deg,var(--surface),#10141c)}
+.hotwrap:before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(115deg,transparent 30%,#e6b45012 46%,#7fd7ff08 52%,#e6b45010 58%,transparent 74%)}
+.hothead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:13px 16px 4px}
+.hottitle{font-weight:800;font-size:15px;color:var(--gold);letter-spacing:.02em}
+.hotnote{font-size:11px;color:var(--faint)}
+.hotlist{display:flex;flex-direction:column;padding:6px 8px 10px;position:relative}
+.hotrow{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;transition:.15s;min-width:0}
+.hotrow:hover{background:#e6b4500c}
+.hotrow .rank{flex:none;font:800 18px var(--mono);color:var(--gold-dim);width:26px;text-align:center}
+.hotrow:first-child .rank{color:var(--gold);font-size:22px}
+.hotrow .hmain{flex:1;min-width:0;display:block}
+.hotrow .hname{display:block;font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hotrow .hsub{font-size:11px;color:var(--muted);margin-top:2px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.hotrow .hprofit{flex:none;text-align:right}
+.hotrow .hprofit .p{font:800 19px/1 var(--mono);color:var(--good);font-variant-numeric:tabular-nums}
+.hotrow:first-child .hprofit .p{font-size:23px}
+.hotrow .hprofit .r{font:700 10.5px var(--mono);color:var(--muted);margin-top:3px}
+.hotrow .act{flex:none;font:700 12.5px var(--jp);color:#131313;background:var(--gold);
+  border-radius:9px;padding:8px 14px;white-space:nowrap;transition:.15s}
+.hotrow:hover .act{filter:brightness(1.1)}
+.hotrow .kindtag{font:700 9.5px var(--mono);letter-spacing:.1em;padding:2px 6px;border-radius:5px;
+  background:var(--surface-2);color:var(--muted)}
+@media (max-width:640px){
+  .hotrow{flex-wrap:wrap;row-gap:6px}
+  .hotrow .hmain{flex-basis:calc(100% - 40px)}
+  .hotrow .act{margin-left:auto}
+}
+
 /* ── stock strip (今すぐ買える) ── */
 .stockwrap{margin:16px 0 4px;border:1px solid #2f6b45;border-radius:14px;overflow:hidden;
   background:linear-gradient(180deg,#12241a20,transparent),linear-gradient(180deg,var(--surface),#10141c)}
@@ -170,6 +203,9 @@ header.top{
 .chip{font:600 11.5px var(--jp);color:var(--text);background:var(--surface-2);
   border:1px solid var(--line);border-radius:999px;padding:4px 10px;white-space:nowrap}
 .chip.fresh{color:var(--gold);border-color:var(--gold-dim);background:#e6b4500d}
+.chip.hotchip{color:var(--gold);border-color:var(--gold);background:#e6b45015;font-weight:800}
+.card.hotcard{border-color:var(--gold-dim)}
+.card.hotcard:hover{border-color:var(--gold)}
 .src{font:600 10px var(--mono);letter-spacing:.08em;color:var(--faint);margin-left:auto;white-space:nowrap}
 .title{font-weight:700;font-size:16px;letter-spacing:.01em;text-wrap:balance;margin:2px 0 0}
 
@@ -222,6 +258,14 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
 
 <main class="wrap">
   <section class="summary" id="summary"></section>
+
+  <section class="hotwrap" id="hotwrap" hidden>
+    <div class="hothead">
+      <span class="hottitle">🔥 買い推奨</span>
+      <span class="hotnote">期待利益ランキング — 逃すと損する順</span>
+    </div>
+    <div class="hotlist" id="hotlist"></div>
+  </section>
 
   <section class="stockwrap" id="stockwrap" hidden>
     <div class="stockhead">
@@ -291,13 +335,16 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
   }
 
   function evClass(p){ return p==null?"na":(p>=0?"pos":"neg"); }
+  function isHot(x){ return x.profit!=null && (x.profit>=DATA.hot.minProfit || (x.roi!=null && x.roi>=DATA.hot.minRoi)); }
 
   function card(it){
     var cd = statusOf(it);
     var ec = evClass(it.profit);
     var h = "";
-    h += '<article class="card '+(ec==="pos"?"pos":ec==="neg"?"neg":"")+'">';
+    var hot=isHot(it);
+    h += '<article class="card '+(ec==="pos"?"pos":ec==="neg"?"neg":"")+(hot?" hotcard":"")+'">';
     h +=   '<div class="row1"><span class="chip">'+esc(it.store)+'</span>';
+    if(hot) h += '<span class="chip hotchip">🔥 買い推奨</span>';
     if(it.fresh) h += '<span class="chip fresh">🆕 新商品</span>';
     h +=     '<span class="src">'+esc(it.source)+'</span></div>';
     h +=   '<h3 class="title">'+esc(it.title)+'</h3>';
@@ -369,6 +416,31 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
     return '<div class="stat'+(hero?" hero":"")+'"><div class="lbl">'+esc(lbl)+'</div>'
          + '<div class="val">'+esc(val)+'</div><div class="sub">'+esc(sub)+'</div></div>';
   }
+
+  // 🔥買い推奨ランキング — 抽選＋在庫を統合し期待利益順トップ5（一度だけ描画）
+  (function renderHot(){
+    var pool=[];
+    items.forEach(function(x){ if(isHot(x)) pool.push({type:"抽選",name:x.store+"："+x.title,profit:x.profit,roi:x.roi,url:x.url,it:x}); });
+    (DATA.stock||[]).forEach(function(s){ if(isHot(s)) pool.push({type:"在庫",name:s.store+"："+s.title,profit:s.profit,roi:s.roi,url:s.url,st:s}); });
+    if(!pool.length) return;
+    pool.sort(function(a,b){return b.profit-a.profit;});
+    document.getElementById("hotwrap").hidden=false;
+    document.getElementById("hotlist").innerHTML=pool.slice(0,5).map(function(p,i){
+      var sub;
+      if(p.st){ sub='<span class="pill live">在庫あり・先着</span>'+(p.st.price!=null?(' 販売価格 '+yen(p.st.price)):''); }
+      else { var cd=statusOf(p.it); sub='<span class="pill '+cd.cls+'">'+cd.txt+'</span>'+(p.it.endLabel?(' '+esc(p.it.endLabel)):''); }
+      var tag=p.url?'a':'div';
+      var h='<'+tag+' class="hotrow"'+(p.url?' href="'+esc(p.url)+'" target="_blank" rel="noopener"':'')+'>';
+      h+='<span class="rank">'+(i+1)+'</span>';
+      h+='<span class="hmain"><span class="hname">'+esc(p.name)+'</span>'
+        +'<span class="hsub"><span class="kindtag">'+p.type+'</span>'+sub+'</span></span>';
+      h+='<span class="hprofit"><span class="p">+'+yen(p.profit)+'</span>'
+        +(p.roi!=null?('<div class="r">ROI '+p.roi+'%</div>'):'')+'</span>';
+      h+='<span class="act">'+(p.st?"今すぐ買う":"応募する")+' →</span>';
+      h+='</'+tag+'>';
+      return h;
+    }).join("");
+  })();
 
   // 在庫あり（今すぐ買える）ストリップ — 一度だけ描画
   (function renderStock(){

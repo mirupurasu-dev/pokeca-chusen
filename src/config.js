@@ -16,6 +16,14 @@ export const config = {
     return /受付中|近日受付開始|会員限定/.test(h2) && !/終了|過去|在庫あり|先着/.test(h2);
   },
 
+  // 🔥買い推奨（Hot）判定: どちらかを満たす案件は最優先通知＋UIランキング＋締切リマインド
+  hot: {
+    minProfitYen: Number(process.env.HOT_MIN_PROFIT || 3000),
+    minRoiPct: Number(process.env.HOT_MIN_ROI || 50),
+    // 締切リマインドの段階（残り時間がこの値を下回った実行回に1回通知）
+    remindStagesHours: [24, 3],
+  },
+
   // 相場取得（駿河屋）。期待値 = 相場(中古) − 定価。
   price: {
     enabled: process.env.PRICE_ENABLED !== 'false',

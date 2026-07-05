@@ -1,6 +1,17 @@
 // 抽選エントリを人間向けテキストに整形する（通知・カレンダー・dry-run共用）。
 import { fmtJst } from './util/dates.js';
 import { yen } from './util/text.js';
+import { config } from './config.js';
+
+/** 🔥買い推奨（Hot）判定。抽選・在庫どちらにも使える。 */
+export function isHot(x) {
+  const ev = x?.ev;
+  if (!ev || ev.profitYen == null) return false;
+  return (
+    ev.profitYen >= config.hot.minProfitYen ||
+    (ev.roiPct != null && ev.roiPct >= config.hot.minRoiPct)
+  );
+}
 
 /** 期待利益のバッジ文字列。データが無ければ空。 */
 export function evBadge(lot) {

@@ -64,6 +64,23 @@ export async function saveStockSeen(map) {
   await writeFile(STOCK_FILE, JSON.stringify(map, null, 2), 'utf8');
 }
 
+// ── 🔥買い推奨の締切リマインド状態 ──
+// {抽選id: ["24h","3h"]} 送信済みステージを記録。抽選が消えたら状態も消える。
+const REMIND_FILE = path.join('data', 'remind-seen.json');
+
+export async function loadRemindSeen() {
+  try {
+    return JSON.parse(await readFile(REMIND_FILE, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+export async function saveRemindSeen(map) {
+  await mkdir('data', { recursive: true });
+  await writeFile(REMIND_FILE, JSON.stringify(map, null, 2), 'utf8');
+}
+
 export function diffStock(items, seen) {
   const toNotify = [];
   const nextSeen = {};
