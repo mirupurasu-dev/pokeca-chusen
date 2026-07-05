@@ -95,7 +95,6 @@ git push -u origin main
 
 ```bash
 npm install
-npx playwright install chromium
 
 # 収集と期待値の表示だけ（書き込み・通知なし）
 node src/index.js --dry-run
@@ -104,6 +103,8 @@ node src/index.js --dry-run
 cp .env.example .env   # 値を編集
 node src/index.js
 ```
+
+> 収集は素の HTTP 取得（ブラウザ不要）です。`scripts/dump.js`（実DOM調査用）を使うときだけ `npx playwright install chromium` が必要です。
 
 `--dry-run` は抽選一覧・期待値・「期待利益トップ5」を表示するだけで、カレンダー登録も通知もしません。まずはこれで中身を確認してください。
 

@@ -13,7 +13,6 @@ import { upsertEvents } from './calendar/google.js';
 import { notify } from './notify/index.js';
 import { loadSeen, saveSeen, diff } from './state.js';
 import { consoleBlock } from './format.js';
-import { closeBrowser } from './util/browser.js';
 import { log } from './util/log.js';
 
 async function main() {
@@ -59,9 +58,7 @@ async function main() {
   await saveSeen(nextSeen);
 }
 
-main()
-  .catch((e) => {
-    log.error(e.stack || e.message);
-    process.exitCode = 1;
-  })
-  .finally(closeBrowser);
+main().catch((e) => {
+  log.error(e.stack || e.message);
+  process.exitCode = 1;
+});

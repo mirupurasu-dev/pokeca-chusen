@@ -15,7 +15,9 @@
   },
   "dependencies": {
     "cheerio": "^1.0.0",
-    "googleapis": "^144.0.0",
+    "googleapis": "^144.0.0"
+  },
+  "devDependencies": {
     "playwright": "^1.49.1"
   }
 }

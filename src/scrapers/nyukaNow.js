@@ -9,7 +9,7 @@
 
 import * as cheerio from 'cheerio';
 import { config } from '../config.js';
-import { fetchHtml } from '../util/browser.js';
+import { fetchHtml } from '../util/http.js';
 import { parseJpDateTime } from '../util/dates.js';
 import { tidy, splitProducts, sha1 } from '../util/text.js';
 import { log } from '../util/log.js';
@@ -35,9 +35,8 @@ function matchLabel(label) {
 export async function scrapeNyukaNow(now = new Date()) {
   const url = config.sources.nyukaNow.url;
   log.info(`入荷Now を取得: ${url}`);
-  // 入荷NowはWordPress（HTMLは初期表示に含まれる）。広告でnetworkidleが
-  // 落ち着かないため domcontentloaded + 短い待機で取得する。
-  const html = await fetchHtml(url, { waitUntil: 'domcontentloaded', settleMs: 2000 });
+  // WordPress＝HTMLは初期レスポンスに含まれるので素のfetchで取得（ブラウザ不要）。
+  const html = await fetchHtml(url);
   const $ = cheerio.load(html);
   const article = $('main').first().length ? $('main').first() : $('article').first();
 
