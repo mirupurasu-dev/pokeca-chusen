@@ -6,6 +6,8 @@
 //   node src/index.js --dry-run  … 収集と期待値だけ表示（書き込み・通知なし）
 //   node src/index.js --no-price … 相場取得をスキップ（動作確認用）
 import './env.js';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { config } from './config.js';
 import { scrapeAll } from './scrapers/index.js';
 import { attachExpectedValue } from './price/expectedValue.js';
@@ -13,7 +15,15 @@ import { upsertEvents } from './calendar/google.js';
 import { notify } from './notify/index.js';
 import { loadSeen, saveSeen, diff } from './state.js';
 import { consoleBlock } from './format.js';
+import { renderHtml } from './render.js';
 import { log } from './util/log.js';
+
+async function writeDashboard(lotteries, now) {
+  const html = renderHtml(lotteries, now);
+  await mkdir('public', { recursive: true });
+  await writeFile(path.join('public', 'index.html'), html, 'utf8');
+  log.info(`ダッシュボードを生成: public/index.html (${lotteries.length}件)`);
+}
 
 async function main() {
   const args = process.argv.slice(2);
@@ -27,6 +37,7 @@ async function main() {
     return;
   }
   await attachExpectedValue(lotteries);
+  await writeDashboard(lotteries, now);
 
   if (dryRun) {
     const seen = await loadSeen();

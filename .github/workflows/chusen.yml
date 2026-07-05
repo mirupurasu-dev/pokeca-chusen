@@ -35,14 +35,14 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: node src/index.js
 
-      - name: Persist state (seen.json)
+      - name: Persist state & dashboard
         run: |
-          if [[ -n "$(git status --porcelain data/seen.json)" ]]; then
+          git add data/seen.json public/index.html
+          if [[ -n "$(git status --porcelain data/seen.json public/index.html)" ]]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add data/seen.json
-            git commit -m "chore: update seen.json [skip ci]"
+            git commit -m "chore: update dashboard & state [skip ci]"
             git push
           else
-            echo "no state change"
+            echo "no change"
           fi
