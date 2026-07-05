@@ -1,0 +1,5 @@
+node_modules/
+dumps/
+.env
+*.log
+service-account.json
