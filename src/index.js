@@ -16,13 +16,16 @@ import { notify } from './notify/index.js';
 import { loadSeen, saveSeen, diff } from './state.js';
 import { consoleBlock } from './format.js';
 import { renderHtml } from './render.js';
+import { renderIcs } from './calendar/ics.js';
 import { log } from './util/log.js';
 
 async function writeDashboard(lotteries, now) {
-  const html = renderHtml(lotteries, now);
   await mkdir('public', { recursive: true });
-  await writeFile(path.join('public', 'index.html'), html, 'utf8');
-  log.info(`ダッシュボードを生成: public/index.html (${lotteries.length}件)`);
+  await writeFile(path.join('public', 'index.html'), renderHtml(lotteries, now), 'utf8');
+  const ics = renderIcs(lotteries, now);
+  await writeFile(path.join('public', 'calendar.ics'), ics, 'utf8');
+  const events = (ics.match(/BEGIN:VEVENT/g) || []).length;
+  log.info(`ダッシュボードを生成: public/index.html (${lotteries.length}件) / calendar.ics (${events}予定)`);
 }
 
 async function main() {

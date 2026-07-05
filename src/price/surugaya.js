@@ -21,8 +21,13 @@ export async function lookupSurugaya(product) {
   if (!kw) return null;
   if (cache.has(kw)) return cache.get(kw);
 
-  // キーワード候補：フル → 先頭語だけ（副題が長すぎて0件/404になる場合の保険）
-  const token = kw.split(/\s+/)[0];
+  // 照合用トークン: 汎用語(MEGA/拡張パック等)を除いた最長の語＝最も商品を特定する語。
+  // 汎用語だけで照合すると別商品にconfident=trueが付く誤マッチが起きる。
+  const GENERIC = /^(MEGA|BOX|30th|ex|拡張パック|強化拡張パック|スペシャルカードセット|カードセット|プレミアムデッキセット|スターターセット|セット|デッキ|各種)$/i;
+  const words = kw.split(/\s+/).filter(Boolean);
+  const distinctive = words.filter((w) => !GENERIC.test(w)).sort((a, b) => b.length - a.length)[0];
+  const token = distinctive || words[0];
+  // クエリ候補：フル → 特徴語だけ（副題が長すぎて0件/404になる場合の保険）
   const queries = [...new Set([`${kw} BOX`, `${token} BOX`])];
 
   let result = null;

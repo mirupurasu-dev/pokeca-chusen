@@ -82,8 +82,8 @@ export async function scrapeNyukaNow(now = new Date()) {
       applyStart = parseJpDateTime(a, now);
       applyEnd = parseJpDateTime(b || '', now);
     }
-    // 日付が全く取れないエントリはスケジュール化できないので除外
-    if (!applyStart && !applyEnd) return;
+    // 日付が取れないエントリ（近日受付開始・未発売の新商品告知など）も
+    // 「日程未定」として一覧に残す。カレンダーには日付確定後に載る。
 
     const products = splitProducts(fields.product || store);
     const primary = products[0] || store;

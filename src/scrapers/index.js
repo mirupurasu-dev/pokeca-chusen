@@ -41,12 +41,13 @@ export async function scrapeAll(now = new Date()) {
     else byId.set(item.id, item);
   }
 
-  // 締切(なければ開始)が過去(24時間より前)のエントリは除外
+  // 「締切が過去(24時間より前)」のものだけ除外する。
+  // 締切不明で開始済み＝進行中（招待販売等）、日付なし＝日程未定の新商品告知は残す
+  // （掲載元の「受付中/近日」セクションにある限り有効とみなす）。
   const cutoff = now.getTime() - 24 * 60 * 60 * 1000;
-  const active = [...byId.values()].filter((x) => {
-    const anchor = (x.applyEnd || x.applyStart)?.getTime();
-    return anchor != null && anchor >= cutoff;
-  });
+  const active = [...byId.values()].filter(
+    (x) => !x.applyEnd || x.applyEnd.getTime() >= cutoff
+  );
 
   // 締切(なければ開始)の昇順に並べる
   active.sort((a, b) => {

@@ -6,6 +6,7 @@
 import { google } from 'googleapis';
 import { config } from '../config.js';
 import { sha1 } from '../util/text.js';
+import { eventAnchor } from '../util/dates.js';
 import { title, detailLines } from '../format.js';
 import { log } from '../util/log.js';
 
@@ -47,10 +48,11 @@ export async function upsertEvents(lotteries) {
   let updated = 0;
 
   for (const lot of lotteries) {
-    const when = lot.applyEnd || lot.applyStart;
-    if (!when) continue;
+    // 締切 or 未来の開始のみ予定化（進行中・日程未定はスキップ、確定後に自動登録）
+    const anchor = eventAnchor(lot);
+    if (!anchor) continue;
     const eventId = sha1(lot.id); // 16進 = 有効なGoogleイベントID
-    const body = buildEvent(lot, when);
+    const body = buildEvent(lot, anchor.when);
     try {
       await cal.events.insert({ calendarId, requestBody: { ...body, id: eventId } });
       created++;

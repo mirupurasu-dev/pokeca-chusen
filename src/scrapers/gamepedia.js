@@ -59,7 +59,7 @@ export async function scrapeGamepedia(now = new Date()) {
 
     const applyStart = parseJpDateTime(f['抽選開始日時'] || f['予約開始日時'] || f['開始日時'], now);
     const applyEnd = parseJpDateTime(f['抽選終了日時'] || f['予約終了日時'] || f['終了日時'], now);
-    if (!applyStart && !applyEnd) continue;
+    // 日付不明でも「受付中」掲載なら日程未定として一覧に残す
 
     // 応募先の外部リンク（まとめ内部リンクは除外）
     const link =

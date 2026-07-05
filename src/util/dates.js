@@ -3,8 +3,6 @@
 //
 // GitHub Actions は UTC で動くため、JSTの壁時計時刻を正しい絶対時刻に変換する。
 
-const MS_DAY = 24 * 60 * 60 * 1000;
-
 function jstYearOf(date) {
   return Number(
     new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Tokyo', year: 'numeric' }).format(date)
@@ -13,7 +11,8 @@ function jstYearOf(date) {
 
 /**
  * 日本語日付文字列を Date に変換する。解釈できなければ null。
- * 年が無い場合は「今日から60日以上過去にならない」ように年を推定する。
+ * 年が無い場合は「現在時刻に最も近い解釈」の年を選ぶ（前年/今年/翌年から最近接）。
+ * 例: 7月に「4/20」→ 今年4/20(過去・進行中の開始日)、12月に「1/10」→ 翌年1/10。
  */
 export function parseJpDateTime(input, now = new Date()) {
   if (!input) return null;
@@ -38,10 +37,31 @@ export function parseJpDateTime(input, now = new Date()) {
 
   if (m[1]) return make(Number(m[1]));
 
+  // 前年・今年・翌年のうち現在時刻に最も近い解釈を採用。
+  // 過去側に倒れるのは進行中の開始日（Amazon招待販売は2月開始のまま7月も受付中が実在）。
+  // 過去側の締切は期限切れフィルタで除外されるため安全。
   const y = jstYearOf(now);
-  let cand = make(y);
-  if (cand.getTime() < now.getTime() - 60 * MS_DAY) cand = make(y + 1);
-  return cand;
+  let best = null;
+  for (const yy of [y - 1, y, y + 1]) {
+    const c = make(yy);
+    if (!best || Math.abs(c.getTime() - now.getTime()) < Math.abs(best.getTime() - now.getTime())) {
+      best = c;
+    }
+  }
+  return best;
+}
+
+/**
+ * カレンダーに載せる基準日時。締切があれば締切、無ければ「未来の開始日」。
+ * 開始済みで締切不明（進行中の招待販売など）と日程未定は null（予定にしない）。
+ * @returns {null | {when: Date, kind: 'end'|'start'}}
+ */
+export function eventAnchor(lot, now = new Date()) {
+  if (lot.applyEnd) return { when: lot.applyEnd, kind: 'end' };
+  if (lot.applyStart && lot.applyStart.getTime() > now.getTime()) {
+    return { when: lot.applyStart, kind: 'start' };
+  }
+  return null;
 }
 
 /** 表示用に JST で整形（例: "7/5(日) 10:00"）。null は「未定」。 */

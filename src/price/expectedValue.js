@@ -14,7 +14,9 @@ export async function attachExpectedValue(lotteries) {
     try {
       const q = await lookupSurugaya(lot.title);
       if (!q || q.marketYen == null) {
+        // 相場が見つからない＝未発売/新商品の可能性（発売済みなら通常ヒットする）
         lot.ev = null;
+        lot.marketMissing = true;
         continue;
       }
       const listYen = lot.priceYen ?? q.listYen ?? null;

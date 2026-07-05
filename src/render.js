@@ -21,7 +21,8 @@ function toPayload(lotteries, generatedAt) {
       startLabel: l.applyStart ? fmtJst(l.applyStart) : '',
       endLabel: l.applyEnd ? fmtJst(l.applyEnd) : '',
       result: l.resultText || '',
-      url: l.url || '',
+      url: /^https?:\/\//.test(l.url || '') ? l.url : '', // http(s)以外は載せない
+      fresh: !!l.marketMissing,
       profit: l.ev?.profitYen ?? null,
       roi: l.ev?.roiPct ?? null,
       market: l.market?.yen ?? null,
@@ -76,6 +77,9 @@ header.top{
 .top .spacer{flex:1}
 .updated{font:500 12px/1 var(--mono);color:var(--faint);white-space:nowrap}
 .updated b{color:var(--muted);font-weight:600}
+.cal{font:600 12px var(--jp);color:var(--gold);border:1px solid var(--gold-dim);
+  border-radius:8px;padding:6px 10px;white-space:nowrap;transition:.15s}
+.cal:hover{background:#e6b4500f;border-color:var(--gold)}
 
 /* ── summary ── */
 .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:22px 0 8px}
@@ -129,6 +133,7 @@ header.top{
 .card .row1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .chip{font:600 11.5px var(--jp);color:var(--text);background:var(--surface-2);
   border:1px solid var(--line);border-radius:999px;padding:4px 10px;white-space:nowrap}
+.chip.fresh{color:var(--gold);border-color:var(--gold-dim);background:#e6b4500d}
 .src{font:600 10px var(--mono);letter-spacing:.08em;color:var(--faint);margin-left:auto;white-space:nowrap}
 .title{font-weight:700;font-size:16px;letter-spacing:.01em;text-wrap:balance;margin:2px 0 0}
 
@@ -150,6 +155,7 @@ header.top{
 .dl .pill.soon{background:#ffb4541c;color:var(--urgent)}
 .dl .pill.now{background:#ff6a6a1e;color:var(--bad)}
 .dl .pill.live{background:#40c76a1a;color:var(--good)}
+.dl .pill.tbd{background:#e6b4501a;color:var(--gold)}
 
 .cond{font-size:11.5px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .cta{margin-top:auto;display:flex;align-items:center;justify-content:space-between;
@@ -166,6 +172,7 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
 @media (max-width:640px){
   .summary{grid-template-columns:1fr;gap:10px}
   .brand .jp{display:none}
+  .updated{display:none}
   .grid{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -173,6 +180,7 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
 <header class="top"><div class="wrap">
   <div class="brand"><span class="mark">Chusen Terminal</span><span class="jp">ポケカ抽選</span></div>
   <span class="spacer"></span>
+  <a class="cal" href="calendar.ics" title="カレンダーアプリで購読（URLで追加）">📅 カレンダー購読</a>
   <span class="updated">更新 <b id="upd"></b></span>
 </div></header>
 
@@ -186,6 +194,9 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
     </div>
     <label class="toggle" id="posToggle" data-on="false">
       <input type="checkbox" id="posOnly"> 期待利益プラスのみ
+    </label>
+    <label class="toggle" id="freshToggle" data-on="false">
+      <input type="checkbox" id="freshOnly"> 🆕 新商品のみ
     </label>
     <div class="search">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--faint)"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
@@ -210,7 +221,7 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
   var items = DATA.items;
   document.getElementById("upd").textContent = DATA.generatedLabel;
 
-  var state = { sort:"deadline", posOnly:false, q:"" };
+  var state = { sort:"deadline", posOnly:false, freshOnly:false, q:"" };
 
   function yen(n){ if(n==null||isNaN(n)) return "—"; return "¥"+Math.round(n).toLocaleString("en-US"); }
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;"}[c];}); }
@@ -232,7 +243,7 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
       if(s>0) return {txt:"開始まで "+rel(s),cls:s/3600000<24?"soon":""};
       return {txt:"受付中",cls:"live"};
     }
-    return {txt:"—",cls:""};
+    return {txt:"日程未定",cls:"tbd"};
   }
 
   function evClass(p){ return p==null?"na":(p>=0?"pos":"neg"); }
@@ -243,13 +254,14 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
     var h = "";
     h += '<article class="card '+(ec==="pos"?"pos":ec==="neg"?"neg":"")+'">';
     h +=   '<div class="row1"><span class="chip">'+esc(it.store)+'</span>';
+    if(it.fresh) h += '<span class="chip fresh">🆕 新商品</span>';
     h +=     '<span class="src">'+esc(it.source)+'</span></div>';
     h +=   '<h3 class="title">'+esc(it.title)+'</h3>';
 
     // EV block
     h +=   '<div class="ev '+ec+'">';
     if(it.profit==null){
-      h += '<span class="big">相場データなし</span>';
+      h += '<span class="big">'+(it.fresh?"相場未確立（未発売の可能性）":"相場データなし")+'</span>';
     }else{
       h += '<span class="big">'+(it.profit>=0?"+":"−")+yen(Math.abs(it.profit))+'</span>';
       if(it.roi!=null) h += '<span class="roi">ROI '+it.roi+'%</span>';
@@ -282,6 +294,7 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
   function view(){
     var list = items.slice();
     if(state.posOnly) list = list.filter(function(x){return x.profit!=null && x.profit>0;});
+    if(state.freshOnly) list = list.filter(function(x){return x.fresh;});
     if(state.q){ var q=state.q.toLowerCase();
       list = list.filter(function(x){return (x.store+" "+x.title).toLowerCase().indexOf(q)>=0;}); }
     if(state.sort==="ev") list.sort(function(a,b){return (b.profit==null?-1e15:b.profit)-(a.profit==null?-1e15:a.profit);});
@@ -324,6 +337,11 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
   document.getElementById("posOnly").addEventListener("change",function(e){
     state.posOnly=e.target.checked;
     document.getElementById("posToggle").dataset.on=e.target.checked;
+    view();
+  });
+  document.getElementById("freshOnly").addEventListener("change",function(e){
+    state.freshOnly=e.target.checked;
+    document.getElementById("freshToggle").dataset.on=e.target.checked;
     view();
   });
   document.getElementById("q").addEventListener("input",function(e){ state.q=e.target.value.trim(); view(); });

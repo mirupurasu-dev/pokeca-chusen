@@ -26,7 +26,10 @@ export function detailLines(lot) {
     const list = lot.market.listYen != null ? ` / 定価 ${yen(lot.market.listYen)}` : '';
     const conf = lot.market.confident ? '' : '（参考・要確認）';
     lines.push(`💴 相場 ${yen(lot.market.yen)}${list} 〔駿河屋${conf}〕`);
+  } else if (lot.marketMissing) {
+    lines.push('🆕 相場未確立（新商品・未発売の可能性）');
   }
+  if (!lot.applyStart && !lot.applyEnd) lines.push('📆 日程未定（確定したら再通知）');
   const ev = evBadge(lot);
   if (ev) lines.push(`📈 ${ev}`);
   if (lot.conditions) lines.push(`📝 条件: ${lot.conditions}`);
