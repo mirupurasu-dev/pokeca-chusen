@@ -1,0 +1,27 @@
+name: debug-net
+on:
+  workflow_dispatch: {}
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe market sources from CI
+        run: |
+          node -e '
+          const UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+          const targets=[
+            ["surugaya-search","https://www.suruga-ya.jp/search?search_word="+encodeURIComponent("アビスアイ BOX")],
+            ["surugaya-top","https://www.suruga-ya.jp/"],
+            ["pokeca-chart-top","https://pokeca-chart.com/"],
+            ["pokeca-chart-search","https://pokeca-chart.com/?s="+encodeURIComponent("アビスアイ")],
+          ];
+          (async()=>{
+            for(const [name,url] of targets){
+              try{
+                const r=await fetch(url,{headers:{"User-Agent":UA,"Accept-Language":"ja"},redirect:"manual"});
+                const t=await r.text().catch(()=>"");
+                console.log(name, r.status, "bytes="+t.length, "loc="+(r.headers.get("location")||"-"), "cf="+(r.headers.get("server")||"-"));
+              }catch(e){ console.log(name,"ERR",e.message); }
+            }
+          })();
+          '
