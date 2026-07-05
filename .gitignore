@@ -3,3 +3,7 @@ dumps/
 .env
 *.log
 service-account.json
+
+public/__*
+public/index.html
+public/calendar.ics

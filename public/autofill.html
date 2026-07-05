@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0b0d12">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%F0%9F%A7%A9%3C/text%3E%3C/svg%3E">
+<title>フォーム自動入力の設定 — ポケカ抽選</title>
+<style>
+:root{--ink:#0b0d12;--surface:#141821;--surface-2:#1b2130;--line:#262d3b;--text:#e8ebf2;
+  --muted:#8b93a7;--faint:#5c6474;--gold:#e6b450;--gold-dim:#8a6d2e;--good:#40c76a;
+  --jp:"Hiragino Kaku Gothic ProN","Yu Gothic",YuGothic,Meiryo,system-ui,sans-serif;--mono:ui-monospace,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ink);color:var(--text);font-family:var(--jp);line-height:1.7}
+.wrap{max-width:760px;margin:0 auto;padding:28px 20px 60px}
+a{color:var(--gold)}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--muted);font-size:13px;margin-bottom:24px}
+.back{font-size:13px;color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line)}
+.safe{background:linear-gradient(180deg,#12241a30,transparent),var(--surface);border:1px solid #2f6b45;
+  border-radius:14px;padding:16px 18px;margin:20px 0}
+.safe b{color:var(--good)}
+.step{display:flex;gap:14px;padding:16px 0;border-top:1px solid var(--line)}
+.num{flex:none;width:30px;height:30px;border-radius:999px;background:var(--gold);color:#131313;
+  font:800 15px/30px var(--mono);text-align:center}
+.step h3{margin:2px 0 6px;font-size:15px}
+.step p{margin:0 0 8px;color:var(--muted);font-size:13.5px}
+.btn{display:inline-block;background:var(--gold);color:#131313;font-weight:800;text-decoration:none;
+  padding:11px 18px;border-radius:10px;font-size:14px}
+.btn.ghost{background:transparent;color:var(--gold);border:1px solid var(--gold-dim)}
+code{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:2px 6px;font:12.5px var(--mono);color:var(--text)}
+.store{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+ul{margin:6px 0;padding-left:20px;color:var(--muted);font-size:13px}
+.note{color:var(--faint);font-size:12px;margin-top:26px;border-top:1px solid var(--line);padding-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./">← ダッシュボードに戻る</a>
+  <h1>🧩 フォーム自動入力の設定</h1>
+  <div class="sub">抽選応募フォームの氏名・住所・電話などを、ブラウザが自動で入力します。</div>
+
+  <div class="safe">
+    <b>🔒 安全の約束</b><br>
+    ① <b>送信ボタンは絶対に押しません。</b>値を入れるだけで、応募の確定は必ずあなた自身が確認して行います（入力中はあらゆる自動送信もブロックします）。<br>
+    ② 入力する<b>個人情報はあなたのPC/スマホの中だけ</b>に保存され、どのサーバーにも送信されません。このツールに個人情報は含まれていません。
+  </div>
+
+  <div class="step">
+    <div class="num">1</div>
+    <div>
+      <h3>拡張機能「Tampermonkey」を入れる</h3>
+      <p>ユーザースクリプトを動かす無料拡張です（Chrome/Edge/Firefox/Safari対応）。ブラウザの拡張ストアで「Tampermonkey」を検索して追加してください。</p>
+      <div class="store">
+        <a class="btn ghost" href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noopener">Chrome / Edge</a>
+        <a class="btn ghost" href="https://addons.mozilla.org/firefox/addon/tampermonkey/" target="_blank" rel="noopener">Firefox</a>
+        <a class="btn ghost" href="https://apps.apple.com/app/tampermonkey/id1482490089" target="_blank" rel="noopener">Safari (iPhone/Mac)</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">2</div>
+    <div>
+      <h3>自動入力スクリプトを入れる</h3>
+      <p>Tampermonkeyを入れた状態で下のボタンを押すと、インストール確認画面が出ます。「インストール」を押してください。以後この画面から自動更新されます。</p>
+      <a class="btn" href="autofill.user.js">＋ 自動入力スクリプトを入れる</a>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">3</div>
+    <div>
+      <h3>あなたの情報を1回だけ登録</h3>
+      <p>どのサイトでもいいので画面右下に出る <code>🎴 自動入力</code> ボタンを<b>右クリック（スマホは長押し）</b>、または Tampermonkey メニューの <code>⚙ 自動入力の設定</code> から、氏名・フリガナ・住所・電話などを入力して保存します。</p>
+      <ul>
+        <li>この情報はブラウザ内だけに保存されます</li>
+        <li>フリガナはカタカナで入れればOK（ひらがな欄には自動変換します）</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">4</div>
+    <div>
+      <h3>抽選フォームで使う</h3>
+      <p>抽選応募ページを開くと（既知の抽選サイトでは)自動で入力されます。他のサイトでは右下の <code>🎴 自動入力</code> ボタンを押せば入力されます。</p>
+      <ul>
+        <li>入力後、<b>内容を確認して、規約同意チェックと送信ボタンはご自身で</b>押してください（同意チェックは安全のため自動では入れません）</li>
+        <li>画像認証(CAPTCHA)がある場合はご自身で対応してください</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">
+    対応：氏名（漢字/カナ/ひらがな）・メール（確認欄も）・電話（分割欄も）・郵便番号（分割欄も）・都道府県・住所・建物・生年月日・性別。<br>
+    フォームによっては一部の欄が自動入力できないことがあります。その場合は手動で補ってください。埋め込み(iframe)フォームは対象外です。
+  </div>
+</div>
+</body>
+</html>

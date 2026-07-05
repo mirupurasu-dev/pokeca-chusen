@@ -23,6 +23,7 @@ function toPayload(lotteries, stock, generatedAt) {
       hour: '2-digit', minute: '2-digit', hour12: false,
     }).format(generatedAt),
     items: lotteries.map((l) => ({
+      id: l.id || '',
       store: l.store || '',
       title: l.title || '',
       source: String(l.source || ''),
@@ -140,6 +141,50 @@ header.top{
   .hotrow .act{margin-left:auto}
 }
 
+/* ── tabs ── */
+.tabs{display:flex;gap:4px;margin:20px 0 2px;border-bottom:1px solid var(--line)}
+.tab{appearance:none;border:0;background:transparent;color:var(--muted);cursor:pointer;
+  font:700 14px var(--jp);padding:11px 16px;border-bottom:2px solid transparent;margin-bottom:-1px;
+  display:inline-flex;align-items:center;gap:7px;transition:.15s}
+.tab:hover{color:var(--text)}
+.tab[aria-selected=true]{color:var(--gold);border-bottom-color:var(--gold)}
+.tabbadge{min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--surface-2);
+  color:var(--muted);font:700 11px var(--mono);display:inline-flex;align-items:center;justify-content:center}
+.tab[aria-selected=true] .tabbadge{background:#e6b45022;color:var(--gold)}
+
+/* 申込状況セレクタ（カード内） */
+.statusrow{display:flex;align-items:center;gap:8px;margin-top:2px;padding-top:10px;border-top:1px solid var(--line)}
+.statusrow .k{font:600 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.statussel{flex:1;appearance:none;background:var(--surface-2);color:var(--text);border:1px solid var(--line);
+  border-radius:8px;padding:7px 10px;font:600 12.5px var(--jp);cursor:pointer}
+.statussel:focus{outline:2px solid var(--gold-dim);outline-offset:1px}
+.chip.stbadge{font-weight:800}
+.chip.s-applied{color:#7fd7ff;border-color:#2b5c72;background:#7fd7ff12}
+.chip.s-won{color:var(--good);border-color:#2f6b45;background:#40c76a14}
+.chip.s-lost{color:var(--bad);border-color:#5c2b2b;background:#ff6a6a12}
+.chip.s-watch{color:var(--gold);border-color:var(--gold-dim);background:#e6b4500f}
+.chip.s-skip{color:var(--faint);border-color:var(--line)}
+
+/* 申込管理ビュー */
+.mgmtnote{color:var(--muted);font-size:12.5px;margin:16px 0 8px}
+.mgroup{margin:16px 0}
+.mghead{font-weight:800;font-size:13.5px;color:var(--text);margin:0 2px 8px;display:flex;align-items:center;gap:8px}
+.mghead .mgcount{font:700 11px var(--mono);color:var(--muted);background:var(--surface-2);border-radius:999px;padding:2px 8px}
+.mrow{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--surface);
+  border:1px solid var(--line);border-radius:12px;margin-bottom:8px;min-width:0}
+.mrow.due{border-color:var(--gold-dim);background:linear-gradient(180deg,#2a210f22,transparent),var(--surface)}
+.mrow .mmain{flex:1;min-width:0}
+.mrow .mname{font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mrow .msub{font-size:11.5px;color:var(--muted);margin-top:3px}
+.mrow .msub .duetag{color:var(--gold);font-weight:700}
+.mrow .mlink{flex:none;font:600 12px var(--jp);color:var(--gold);border:1px solid var(--gold-dim);border-radius:8px;padding:6px 11px}
+.mrow .statussel{flex:none;width:130px}
+@media (max-width:640px){
+  .mrow{flex-wrap:wrap;row-gap:8px}
+  .mrow .mmain{flex-basis:100%}
+  .mrow .statussel{flex:1;width:auto}
+}
+
 /* ── stock strip (今すぐ買える) ── */
 .stockwrap{margin:16px 0 4px;border:1px solid #2f6b45;border-radius:14px;overflow:hidden;
   background:linear-gradient(180deg,#12241a20,transparent),linear-gradient(180deg,var(--surface),#10141c)}
@@ -252,6 +297,7 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
 <header class="top"><div class="wrap">
   <div class="brand"><span class="mark">Chusen Terminal</span><span class="jp">ポケカ抽選</span></div>
   <span class="spacer"></span>
+  <a class="cal" href="autofill.html" title="抽選フォームの自動入力（送信はしません）">🧩 自動入力</a>
   <a class="cal" href="calendar.ics" title="カレンダーアプリで購読（URLで追加）">📅 カレンダー購読</a>
   <span class="updated">更新 <b id="upd"></b></span>
 </div></header>
@@ -259,6 +305,12 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
 <main class="wrap">
   <section class="summary" id="summary"></section>
 
+  <div class="tabs" role="tablist">
+    <button class="tab" data-tab="grid" role="tab" aria-selected="true">🎴 抽選一覧</button>
+    <button class="tab" data-tab="mgmt" role="tab" aria-selected="false">📋 申込管理<span class="tabbadge" id="mgmtBadge"></span></button>
+  </div>
+
+  <div id="tab-grid">
   <section class="hotwrap" id="hotwrap" hidden>
     <div class="hothead">
       <span class="hottitle">🔥 買い推奨</span>
@@ -294,6 +346,12 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
   <div class="count" id="count"></div>
 
   <section class="grid" id="grid"></section>
+  </div>
+
+  <section id="tab-mgmt" hidden>
+    <div class="mgmtnote">抽選カードの「申込状況」で記録した内容がここに集まります（この端末内だけに保存。サーバーには送られません）。</div>
+    <div id="mgmt"></div>
+  </section>
 </main>
 
 <footer><div class="wrap">
@@ -310,6 +368,21 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
   document.getElementById("upd").textContent = DATA.generatedLabel;
 
   var state = { sort:"deadline", posOnly:false, freshOnly:false, q:"" };
+  var byId = {}; items.forEach(function(x){ byId[x.id]=x; });
+
+  // ── 申込管理（この端末のlocalStorageに保存。PIIではなく抽選の状態のみ） ──
+  var APP_KEY='pokeca_apps';
+  function getApps(){ try{ return JSON.parse(localStorage.getItem(APP_KEY))||{}; }catch(e){ return {}; } }
+  function saveApps(m){ try{ localStorage.setItem(APP_KEY,JSON.stringify(m)); }catch(e){} }
+  var STATUSES=[['','—（未設定）'],['watch','👀 気になる'],['applied','✅ 申込済み'],['won','🎉 当選'],['lost','❌ 落選'],['skip','🚫 見送り']];
+  function statusLabel(s){ for(var i=0;i<STATUSES.length;i++) if(STATUSES[i][0]===s) return STATUSES[i][1]; return ''; }
+  function statusOpts(cur){ return STATUSES.map(function(s){ return '<option value="'+s[0]+'"'+(s[0]===cur?' selected':'')+'>'+esc(s[1])+'</option>'; }).join(''); }
+  function setStatus(item,status){
+    var m=getApps();
+    if(!status){ delete m[item.id]; }
+    else { m[item.id]={status:status,store:item.store,title:item.title,end:item.end||null,endLabel:item.endLabel||'',result:item.result||'',url:item.url||'',profit:(item.profit!=null?item.profit:null),updatedAt:Date.now()}; }
+    saveApps(m);
+  }
 
   function yen(n){ if(n==null||isNaN(n)) return "—"; return "¥"+Math.round(n).toLocaleString("en-US"); }
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;"}[c];}); }
@@ -342,10 +415,12 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
     var ec = evClass(it.profit);
     var h = "";
     var hot=isHot(it);
+    var appStatus=(getApps()[it.id]||{}).status||'';
     h += '<article class="card '+(ec==="pos"?"pos":ec==="neg"?"neg":"")+(hot?" hotcard":"")+'">';
     h +=   '<div class="row1"><span class="chip">'+esc(it.store)+'</span>';
     if(hot) h += '<span class="chip hotchip">🔥 買い推奨</span>';
     if(it.fresh) h += '<span class="chip fresh">🆕 新商品</span>';
+    if(appStatus) h += '<span class="chip stbadge s-'+appStatus+'">'+esc(statusLabel(appStatus))+'</span>';
     h +=     '<span class="src">'+esc(it.source)+'</span></div>';
     h +=   '<h3 class="title">'+esc(it.title)+'</h3>';
 
@@ -376,6 +451,7 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
     if(it.url){ h += '<a class="cta" href="'+esc(it.url)+'" target="_blank" rel="noopener">応募ページへ <span>&rarr;</span></a>'; }
     else { h += '<span class="cta disabled">応募リンクなし</span>'; }
 
+    h += '<div class="statusrow"><span class="k">申込状況</span><select class="statussel" data-id="'+esc(it.id)+'">'+statusOpts(appStatus)+'</select></div>';
     h += '</article>';
     return h;
   }
@@ -415,6 +491,34 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
   function stat(lbl,val,sub,hero){
     return '<div class="stat'+(hero?" hero":"")+'"><div class="lbl">'+esc(lbl)+'</div>'
          + '<div class="val">'+esc(val)+'</div><div class="sub">'+esc(sub)+'</div></div>';
+  }
+
+  // 申込管理ビュー
+  function mgmtRow(a){
+    var due=(a.status==='applied' && a.end && new Date(a.end).getTime()<Date.now());
+    var sub=[]; if(a.endLabel)sub.push('締切 '+esc(a.endLabel)); if(a.result)sub.push('発表 '+esc(a.result));
+    if(due)sub.push('<span class="duetag">結果を記録しましょう</span>');
+    var h='<div class="mrow'+(due?' due':'')+'">';
+    h+='<div class="mmain"><div class="mname">'+esc(a.store)+'：'+esc(a.title)+'</div>';
+    h+='<div class="msub">'+(sub.join(' ・ ')||'日程未定')+'</div></div>';
+    if(a.url)h+='<a class="mlink" href="'+esc(a.url)+'" target="_blank" rel="noopener">開く</a>';
+    h+='<select class="statussel" data-id="'+esc(a.id)+'">'+statusOpts(a.status)+'</select>';
+    h+='</div>'; return h;
+  }
+  function renderMgmt(){
+    var m=getApps(); var ids=Object.keys(m);
+    var order=[['applied','✅ 申込済み'],['watch','👀 気になる'],['won','🎉 当選'],['lost','❌ 落選'],['skip','🚫 見送り']];
+    var groups={}; order.forEach(function(o){ groups[o[0]]=[]; });
+    ids.forEach(function(id){ var a=m[id]; if(groups[a.status]) groups[a.status].push(Object.assign({id:id},a)); });
+    var html='';
+    if(!ids.length){ html='<div class="empty">まだ登録がありません。「抽選一覧」の各カード下の「申込状況」で記録すると、ここに集まります。</div>'; }
+    else { order.forEach(function(o){ var arr=groups[o[0]]; if(!arr.length)return;
+      arr.sort(function(a,b){ return (a.end?new Date(a.end).getTime():Infinity)-(b.end?new Date(b.end).getTime():Infinity); });
+      html+='<div class="mgroup"><div class="mghead">'+o[1]+'<span class="mgcount">'+arr.length+'</span></div>'+arr.map(mgmtRow).join('')+'</div>';
+    }); }
+    document.getElementById('mgmt').innerHTML=html;
+    var pending=groups.applied.length+groups.watch.length;
+    var badge=document.getElementById('mgmtBadge'); badge.textContent=pending?pending:''; badge.style.display=pending?'':'none';
   }
 
   // 🔥買い推奨ランキング — 抽選＋在庫を統合し期待利益順トップ5（一度だけ描画）
@@ -482,7 +586,32 @@ footer a{color:var(--muted);border-bottom:1px solid var(--line)}
   });
   document.getElementById("q").addEventListener("input",function(e){ state.q=e.target.value.trim(); view(); });
 
+  // タブ切替
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'),function(t){
+    t.addEventListener('click',function(){
+      Array.prototype.forEach.call(document.querySelectorAll('.tab'),function(x){ x.setAttribute('aria-selected', x===t ? 'true':'false'); });
+      var name=t.dataset.tab;
+      document.getElementById('tab-grid').hidden=(name!=='grid');
+      document.getElementById('tab-mgmt').hidden=(name!=='mgmt');
+      if(name==='mgmt') renderMgmt();
+    });
+  });
+  // 申込状況の変更（カード・管理ビュー両方をデリゲーションで処理）
+  document.addEventListener('change',function(e){
+    var sel=e.target.closest ? e.target.closest('.statussel') : null; if(!sel) return;
+    var id=sel.getAttribute('data-id');
+    var stored=getApps()[id];
+    var item=byId[id] || (stored?Object.assign({id:id},stored):{id:id,store:'',title:''});
+    setStatus(item, sel.value);
+    // カード側は該当カードのバッジだけ差し替え（全再描画しない＝他のセレクタを壊さない）
+    var card=sel.closest('.card');
+    if(card){ var row1=card.querySelector('.row1'); var old=row1.querySelector('.stbadge'); if(old) old.remove();
+      if(sel.value){ var b=document.createElement('span'); b.className='chip stbadge s-'+sel.value; b.textContent=statusLabel(sel.value); row1.appendChild(b); } }
+    renderMgmt();
+  });
+
   view();
+  renderMgmt();
   setInterval(view, 60000); // 締切カウントダウンを毎分更新
 })();
 </script>`;

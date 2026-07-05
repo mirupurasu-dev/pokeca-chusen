@@ -40,15 +40,17 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: node src/index.js
 
-      - name: Persist state & dashboard
+      # 生成物(public/index.html, calendar.ics)は毎回ここで生成しPagesへ直接アップするので
+      # コミットしない（rebase衝突回避）。永続が要る状態(seen等)だけ data/ に保存する。
+      - name: Persist state
         run: |
-          git add data/ public/
-          if [[ -z "$(git status --porcelain data/ public/)" ]]; then
+          git add data/
+          if [[ -z "$(git status --porcelain data/)" ]]; then
             echo "no change"; exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore: update dashboard & state [skip ci]"
+          git commit -m "chore: update state [skip ci]"
           # 実行中に main が進んでいた場合に備えリベース＋リトライ
           # （生成物のコンフリクトは自分の新しい生成結果 = theirs を採用）
           for i in 1 2 3; do
